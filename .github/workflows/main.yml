@@ -135,13 +135,23 @@ jobs:
 
   # ------------------------------------------------------------------
   # Release: package the two "dist" folders into platform zips plus a
-  # source zip, and publish them on tag pushes.
+  # source zip, and publish them. Version is read from smsdk_config.h.
   # ------------------------------------------------------------------
   release:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     needs: [windows, linux]
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout extension
+        uses: actions/checkout@v4
+
+      - name: Extract version from smsdk_config.h
+        id: version
+        run: |
+          VERSION=$(grep -oP '#define SMEXT_CONF_VERSION\s+"\K[^"]+' smsdk_config.h)
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Detected version: ${VERSION}"
+
       - name: Download Windows dist
         uses: actions/download-artifact@v4
         with:
@@ -156,24 +166,20 @@ jobs:
 
       - name: Assemble release archives
         run: |
-          VERSION="${GITHUB_REF_NAME}"
+          VERSION="${{ steps.version.outputs.VERSION }}"
           echo "Version: ${VERSION}"
 
-          # Windows zip (86 + 64)
+          # Windows zip (x86 + x64)
           (cd windows-dist && zip -r "../DODHooks-${VERSION}-sm1.12-windows.zip" addons)
-          # Linux zip (86 + 64)
+          # Linux zip (x86 + x64)
           (cd linux-dist && zip -r "../DODHooks-${VERSION}-sm1.12-linux.zip" addons)
 
           echo "Created:"
           ls -la *.zip
 
-      - name: Build source package
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Create source zip
         run: |
-          VERSION="${GITHUB_REF_NAME}"
+          VERSION="${{ steps.version.outputs.VERSION }}"
           git archive --format=zip --output="DODHooks-${VERSION}-source.zip" HEAD
 
       - name: Publish release
