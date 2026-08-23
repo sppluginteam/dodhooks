@@ -19,7 +19,7 @@
 public Extension __ext_dodhooks =
 {
     name = "DODHooks",
-    file = "dodhooks.ext",
+    file = "dodhooks.ext.2.dods",
     autoload = 1,
     required = 0,
 };
