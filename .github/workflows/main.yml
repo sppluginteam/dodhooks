@@ -27,6 +27,7 @@ jobs:
           repository: alliedmodders/sourcemod
           ref: 1.12-dev
           path: deps/sourcemod
+          submodules: recursive
 
       - name: Checkout Metamod:Source
         uses: actions/checkout@v4
@@ -82,6 +83,7 @@ jobs:
           repository: alliedmodders/sourcemod
           ref: 1.12-dev
           path: deps/sourcemod
+          submodules: recursive
 
       - name: Checkout Metamod:Source
         uses: actions/checkout@v4

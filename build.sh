@@ -75,6 +75,15 @@ if [[ ! -d "${HL2_ROOT}/hl2sdk-dods/public" ]]; then
   exit 1
 fi
 
+# ---------- Ensure gamedata is available for AMBuild ----------
+if [[ ! -f "${SCRIPT_DIR}/gamedata/dodhooks.txt" ]]; then
+  if [[ -f "${SCRIPT_DIR}/sourcemod/gamedata/dodhooks.txt" ]]; then
+    echo "[INFO] gamedata/dodhooks.txt not found in repo root, copying from sourcemod/gamedata"
+    mkdir -p "${SCRIPT_DIR}/gamedata"
+    cp "${SCRIPT_DIR}/sourcemod/gamedata/dodhooks.txt" "${SCRIPT_DIR}/gamedata/dodhooks.txt"
+  fi
+fi
+
 # ---------- Ensure AMBuild ----------
 if ! python3 -c "import ambuild" 2>/dev/null; then
   echo "[INFO] Installing AMBuild..."
