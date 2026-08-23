@@ -248,9 +248,9 @@ echo   dist\           -> %DIST%
 echo   Upload to server -> addons\sourcemod\extensions\
 echo.
 echo   Contents:
-dir /B /S "%DIST%"
+dir /B /S "%DIST%" 2>nul
 echo.
-goto :done
+exit /b 0
 
 REM ============================================================
 :build_one

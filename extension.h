@@ -17,7 +17,7 @@
 #include <IPlayerHelpers.h>
 #include <IGameHelpers.h>
 #include <IEngineTrace.h>
-#include <ICvar.h>
+#include <iconvar.h>
 #include <IServer.h>
 #include <convar.h>
 #include <sourcemod.h>
