@@ -39,7 +39,7 @@ jobs:
       - name: Checkout hl2sdk-dods
         uses: actions/checkout@v4
         with:
-          repository: ValveSoftware/hl2sdk
+          repository: alliedmodders/hl2sdk
           ref: dods
           path: deps/hl2sdk-dods
 
@@ -88,7 +88,7 @@ jobs:
       - name: Checkout hl2sdk-dods
         uses: actions/checkout@v4
         with:
-          repository: ValveSoftware/hl2sdk
+          repository: alliedmodders/hl2sdk
           ref: dods
           path: deps/hl2sdk-dods
 
