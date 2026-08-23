@@ -158,6 +158,7 @@ class ExtensionConfig(object):
     cxx.cflags += [
       '-pipe',
       '-fno-strict-aliasing',
+      '-fPIC',
       '-Wall',
       '-Wno-unused',
       '-Wno-switch',
