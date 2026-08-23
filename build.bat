@@ -45,7 +45,7 @@ if not defined MMS_PATH if exist "%SCRIPT_DIR%\..\mmsource\core\metamod_plugins.
 
 set "HL2_ROOT="
 if exist "%SCRIPT_DIR%\deps\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%\deps"
-if not defined HL2_ROOT if exist "%SCRIPT_DIR%\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%"
+if not defined HL2_ROOT if exist "%SCRIPT_DIR%\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%\"
 if not defined HL2_ROOT if exist "%SCRIPT_DIR%\..\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%\.."
 
 echo   SourceMod : %SM_PATH%
@@ -139,6 +139,16 @@ echo.
 echo ============================================
 echo   Building x86 (32-bit) and x64 (64-bit)
 echo ============================================
+
+REM ---------- Ensure gamedata is available for AMBuild ----------
+if not exist "%SCRIPT_DIR%\gamedata\dodhooks.txt" (
+  if exist "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" (
+    echo [INFO] gamedata\dodhooks.txt not found in repo root, copying from sourcemod/gamedata
+    if not exist "%SCRIPT_DIR%\gamedata" mkdir "%SCRIPT_DIR%\gamedata"
+    copy /Y "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" "%SCRIPT_DIR%\gamedata\dodhooks.txt" >nul
+  )
+)
+
 call :build_one x86 x86
 if errorlevel 1 (
   echo.
@@ -179,10 +189,13 @@ if exist "%SCRIPT_DIR%\build_x64\package\addons\sourcemod\extensions\x64\dodhook
   goto :error
 )
 
-REM GameData
+REM GameData (accept file in repo root or fallback to sourcemod/gamedata)
 if exist "%SCRIPT_DIR%\gamedata\dodhooks.txt" (
   copy /Y "%SCRIPT_DIR%\gamedata\dodhooks.txt" "%DIST%\addons\sourcemod\gamedata\" >nul
   echo   [OK] GameData
+) else if exist "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" (
+  copy /Y "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" "%DIST%\addons\sourcemod\gamedata\" >nul
+  echo   [OK] GameData (from sourcemod/gamedata)
 ) else (
   echo [ERROR] gamedata\dodhooks.txt not found.
   goto :error
