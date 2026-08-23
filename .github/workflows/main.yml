@@ -103,8 +103,18 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq gcc-multilib g++-multilib libstdc++6:i386
 
+      - name: Clone AMBuild
+        run: git clone https://github.com/alliedmodders/ambuild ambuild
+
       - name: Install AMBuild
-        run: python3 -m pip install --upgrade ambuild
+        run: python3 -m pip install --upgrade ./ambuild
+
+      - name: Install AMBuild (fallback - pip)
+        if: failure()
+        run: python3 -m pip install --upgrade ambuild || true
+
+      - name: Make build script executable
+        run: chmod +x ./build.sh
 
       - name: Build (x86 + x64)
         run: ./build.sh
