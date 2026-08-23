@@ -190,13 +190,18 @@ if exist "%SCRIPT_DIR%\build_x64\package\addons\sourcemod\extensions\x64\dodhook
 )
 
 REM GameData (accept file in repo root or fallback to sourcemod/gamedata)
+set "_GD_OK=0"
 if exist "%SCRIPT_DIR%\gamedata\dodhooks.txt" (
   copy /Y "%SCRIPT_DIR%\gamedata\dodhooks.txt" "%DIST%\addons\sourcemod\gamedata\" >nul
   echo   [OK] GameData
-) else if exist "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" (
+  set "_GD_OK=1"
+)
+if "%_GD_OK%"=="0" if exist "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" (
   copy /Y "%SCRIPT_DIR%\sourcemod\gamedata\dodhooks.txt" "%DIST%\addons\sourcemod\gamedata\" >nul
   echo   [OK] GameData (from sourcemod/gamedata)
-) else (
+  set "_GD_OK=1"
+)
+if "%_GD_OK%"=="0" (
   echo [ERROR] gamedata\dodhooks.txt not found.
   goto :error
 )

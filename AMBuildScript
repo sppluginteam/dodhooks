@@ -244,7 +244,7 @@ class ExtensionConfig(object):
     cxx.cflags += ['/Oy-']
 
   def configure_linux(self, cxx):
-    cxx.defines += ['_LINUX', 'POSIX']
+    cxx.defines += ['_LINUX', 'POSIX', 'LINUX']
     cxx.linkflags += ['-Wl,--exclude-libs,ALL', '-lm']
     if cxx.vendor == 'gcc':
       cxx.linkflags += ['-static-libgcc']
