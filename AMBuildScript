@@ -197,9 +197,10 @@ class ExtensionConfig(object):
     arch = builder.options.arch
     if builder.options.debug == '1':
       cxx.cflags += ['/MTd']
-      cxx.linkflags += ['/NODEFAULTLIB:libcmt']
+      cxx.linkflags += ['/NODEFAULTLIB:libcmt', '/NODEFAULTLIB:msvcrt', '/NODEFAULTLIB:msvcrtd']
     else:
       cxx.cflags += ['/MT']
+      cxx.linkflags += ['/NODEFAULTLIB:msvcrt', '/NODEFAULTLIB:msvcrtd']
     cxx.defines += [
       '_CRT_SECURE_NO_DEPRECATE',
       '_CRT_SECURE_NO_WARNINGS',
