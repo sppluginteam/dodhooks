@@ -332,9 +332,9 @@ class ExtensionConfig(object):
 
     if builder.target_platform == 'linux':
       if builder.options.arch == 'x64':
-        lib_folder = os.path.join(sdk.path, 'lib', 'linux64')
+        lib_folder = os.path.join(sdk.path, 'lib', 'public', 'linux64')
       else:
-        lib_folder = os.path.join(sdk.path, 'lib', 'linux')
+        lib_folder = os.path.join(sdk.path, 'lib', 'public', 'linux')
     elif builder.target_platform == 'windows':
       lib_folder = os.path.join(sdk.path, 'lib', 'public', builder.options.arch)
 
