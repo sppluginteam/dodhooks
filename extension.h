@@ -18,7 +18,7 @@
 #include <IGameHelpers.h>
 #include <IEngineTrace.h>
 #include <iconvar.h>
-#include <IServer.h>
+#include <iserver.h>
 #include <convar.h>
 #include <sourcemod.h>
 #include <smsdk_ext.h>
