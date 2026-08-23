@@ -48,8 +48,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Clone AMBuild
+        run: git clone https://github.com/alliedmodders/ambuild ambuild
+
+      - name: Ensure build tools
+        run: python -m pip install --upgrade pip setuptools wheel build
+
       - name: Install AMBuild
-        run: python -m pip install --upgrade ambuild
+        run: python -m pip install --upgrade ./ambuild
 
       - name: Build (x86 + x64)
         shell: cmd
