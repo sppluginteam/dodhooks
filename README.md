@@ -2,7 +2,7 @@
 
 > **SourceMod Extension with Detours & Natives for Day of Defeat: Source**
 
-[![CI](https://github.com/kittenks/dodhooks-modified/workflows/CI/badge.svg)](https://github.com/kittenks/dodhooks-modified/actions)
+[![CI](https://github.com/kittenks/dodhooks/workflows/CI/badge.svg)](https://github.com/kittenks/dodhooks/actions)
 
 ## About
 
@@ -56,72 +56,62 @@ python -m pip install --upgrade git+https://github.com/alliedmodders/ambuild.git
 
 ## Building
 
+Both 32-bit (x86) and 64-bit (x64) binaries are produced in a **single run**
+and staged into a release-ready `dist/` folder (the extension auto-loads via
+its SourcePawn include file).
+
 ### Quick Start (Linux)
 
 ```bash
 # Clone the repository
-git clone https://github.com/kittenks/dodhooks-modified.git
-cd dodhooks-modified
+git clone https://github.com/kittenks/dodhooks.git
+cd dodhooks
 
 # Clone dependencies
 git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/metamod-source.git mmsource
 git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
 
-# Configure (32-bit)
-mkdir build && cd build
-python3 ../configure.py \
-    --sm-path ../sourcemod \
-    --mms-path ../mmsource \
-    --target x86 \
-    --enable-optimize
-
-# Build
-ambuild
-
-# Output will be in build/package/
+# Build BOTH 32-bit + 64-bit, then stage into dist/ and create a .tar.gz
+./build.sh
 ```
 
-### 64-bit Build (Linux)
-
-```bash
-mkdir build64 && cd build64
-python3 ../configure.py \
-    --sm-path ../sourcemod \
-    --mms-path ../mmsource \
-    --target x86_64 \
-    --enable-optimize
-ambuild
-```
+The result is `dist/addons/sourcemod/extensions/` containing the 32-bit
+`.so`, an `x64/` subfolder with the 64-bit `.so`, the bundled
+`dodhooks.inc` include, and `dist/addons/sourcemod/gamedata/dodhooks.txt`.
 
 ### Windows Build
 
 ```powershell
-# Open "Developer Command Prompt for VS" or run vcvars32.bat
+# Open "Developer Command Prompt for VS" (or any terminal; the script
+# locates vcvarsall.bat automatically).
 
-git clone https://github.com/kittenks/dodhooks-modified.git
-cd dodhooks-modified
+git clone https://github.com/kittenks/dodhooks.git
+cd dodhooks
 
 git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/metamod-source.git mmsource
 git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
 
-# 32-bit build
-mkdir build && cd build
-python ..\configure.py `
-    --sm-path ..\sourcemod `
-    --mms-path ..\mmsource `
-    --target x86 `
-    --enable-optimize
-ambuild
-
-# 64-bit build (use "x64 Native Tools Command Prompt")
-mkdir build64 && cd build64
-python ..\configure.py `
-    --sm-path ..\sourcemod `
-    --mms-path ..\mmsource `
-    --target x86_64 `
-    --enable-optimize
-ambuild
+# Build BOTH 32-bit + 64-bit, then stage into dist/ and create a .zip
+build.bat
 ```
+
+### Manual / Advanced (raw AMBuild)
+
+If you prefer to build a single architecture by hand:
+
+```bash
+mkdir build && cd build
+python3 ../configure.py \
+    --sm-path ../sourcemod \
+    --mms-path ../mmsource \
+    --arch=x86 \
+    --enable-optimize
+ambuild
+# 64-bit: use --arch=x64
+```
+
+> **Note:** the configure argument is `--arch=x86` / `--arch=x64`
+> (not `--target`). The SDK selection is `--sdks=dods`.
 
 ### Generate Visual Studio Project (Windows)
 
@@ -129,70 +119,63 @@ ambuild
 python ..\configure.py `
     --sm-path ..\sourcemod `
     --mms-path ..\mmsource `
-    --target x86 `
+    --arch=x86 `
     --enable-optimize `
     --gen=vs
 ```
 
 ## Docker Build
 
-A Dockerfile is provided for easy Linux builds:
+A Dockerfile and a one-command wrapper (`build_linux_docker.sh`) are provided
+for easy, reproducible Linux builds (no host toolchain needed):
 
 ```bash
-# Build the container
+# Build inside the official AlliedModders container (clones deps into deps/):
+./build_linux_docker.sh
+
+# Or manually:
 docker build -t dodhooks-builder .
-
-# 32-bit build
-docker run --rm -v $(pwd):/work -w /work dodhooks-builder \
-    bash -c "mkdir -p build && cd build && \
-    python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource \
-    --target x86 --enable-optimize && ambuild"
-
-# 64-bit build
-docker run --rm -v $(pwd):/work -w /work dodhooks-builder \
-    bash -c "mkdir -p build && cd build && \
-    python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource \
-    --target x86_64 --enable-optimize && ambuild"
-```
-
-Or with docker-compose:
-
-```bash
-# Build the image
-docker-compose build
-
-# 32-bit build
-docker-compose run --rm dodhooks-builder \
-    bash -c "mkdir -p build && cd build && \
-    python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource \
-    --target x86 --enable-optimize && ambuild"
-
-# 64-bit build
-docker-compose run --rm dodhooks-builder \
-    bash -c "mkdir -p build && cd build && \
-    python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource \
-    --target x86_64 --enable-optimize && ambuild"
+docker run --rm -v $(pwd):/work/dodhooks -w /work/dodhooks dodhooks-builder \
+    bash -c "pip3 install --upgrade ambuild; ./build.sh"
 ```
 
 ## Installation
 
-After building, copy the contents of `build/package/` to your game server's root directory:
+After building, copy the contents of the `dist/` folder to your game server's
+root directory:
 
 ```
 addons/
 └── sourcemod/
     ├── extensions/
-    │   ├── dodhooks.ext.dll        (Windows 32-bit)
-    │   ├── dodhooks.ext.so         (Linux 32-bit)
-    │   └── x64/
-    │       ├── dodhooks.ext.dll    (Windows 64-bit)
-    │       └── dodhooks.ext.so    (Linux 64-bit)
+    �?  ├── dodhooks.ext.2.dods.dll        (Windows 32-bit)
+    �?  ├── dodhooks.ext.2.dods.so         (Linux 32-bit)
+    �?  └── x64/
+    �?      ├── dodhooks.ext.2.dods.dll    (Windows 64-bit)
+    �?      └── dodhooks.ext.2.dods.so     (Linux 64-bit)
     ├── gamedata/
-    │   └── dodhooks.txt
+    �?  └── dodhooks.txt
     └── scripting/
         └── include/
             └── dodhooks.inc
 ```
+
+### Loading the extension
+
+The extension is **auto-loaded** automatically: any plugin that
+`#include <dodhooks>` triggers SourceMod to load `dodhooks.ext` (resolved to
+`dodhooks.ext.2.dods`) at runtime. This is wired up by the
+`public Extension __ext_dodhooks` block inside `dodhooks.inc`, so **no**
+`.autoload` marker file or manual command is needed.
+
+To load it explicitly (e.g. for debugging), use:
+
+```
+sm exts load dodhooks
+```
+
+> Do **not** use `meta load` �?that command is for Metamod:Source plugins and
+> will report "File type not supported" for a `.dll`/`.so` extension.
 
 ## Available Natives
 
@@ -256,5 +239,5 @@ GPL v2 - See [LICENSE](LICENSE) for details.
 - **ChesterSmitty** - Previous maintainer
 - **Apfelwurm** - CI improvements
 - **DNA-styx** - Gamedata file
-- **Kittenks** - Upstream maintainer (1.12/1.13 updates)
+- **Kittenks** - Current maintainer (1.12/1.13 updates, build & packaging) - https://github.com/kittenks/dodhooks
 - **AlliedModders** - SourceMod, Metamod:Source, AMBuild

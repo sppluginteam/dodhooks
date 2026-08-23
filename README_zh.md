@@ -1,202 +1,232 @@
-# DODHooks 中文构建指南
+# DODHooks
 
-## 项目简介
+> **Day of Defeat: Source 的 SourceMod 扩展（提供函数钩子与原生函数）**
 
-DODHooks 是一个为 **Day of Defeat: Source**（胜利之日：起源）游戏服务器提供的 SourceMod 扩展，它通过函数钩子（Detours）和原生函数（Natives）让插件开发者能够在插件中控制和扩展游戏行为。
+[![CI](https://github.com/kittenks/dodhooks/workflows/CI/badge.svg)](https://github.com/kittenks/dodhooks/actions)
 
-### 主要功能
+## 关于
 
-| 类别 | 内容 |
-|------|------|
-| 钩子（Detours） | 语音命令、加入兵种、头盔弹飞、重生、波次时间/加时、设置获胜队伍、回合状态、玩家状态、炸弹目标状态 |
-| 原生函数（Natives） | 获取/设置玩家兵种、控制点图标管理、计时器控制、强制重生、设置回合状态 |
-| 转发（Forwards） | 上述事件的插件级回调钩子，供 SourcePawn 插件使用 |
+DODHooks 是一个面向 **Day of Defeat: Source（胜利之日：起源）** 的 SourceMod 扩展，提供：
 
-### 与原版的区别
+- **钩子（Detours）**：对关键游戏函数进行拦截，例如语音命令、加入兵种、头盔弹飞、重生、波次时间、获胜队伍、回合状态、玩家状态以及炸弹目标状态。
+- **原生函数（Natives）**：供 SourcePawn 插件控制玩家兵种、控制点图标、回合计时器以及游戏规则。
+- **转发（Forwards）**：允许插件拦截并修改游戏事件的钩子。
 
-| 改进项 | 说明 |
-|--------|------|
-| SourceMod 1.12/1.13 支持 | 使用新版 SDK 接口和 AMBuild 2.2+ |
-| 64 位支持 | 完整支持 x86_64 架构（Linux/Windows） |
-| C++17 标准 | 使用现代编译器标志，提升性能和安全性 |
-| 崩溃修复 | 增加 NULL 指针检查、栈对齐修复、安全的 gamedata 解析 |
-| GitHub Actions CI | 自动构建 4 种平台组合（Win/Linux × x86/x64） |
-| Docker 支持 | 提供容器化构建环境，确保可复现的编译结果 |
+本版本是一个持续维护的分支，具备以下特性：
 
----
+- 支持 **SourceMod 1.12 与 1.13**
+- 支持 **Metamod:Source 1.12 与 1.13**
+- 同时编译 **32 位（x86）与 64 位（x86_64）** 架构
+- 可在 **Windows 与 Linux** 上运行
+- 使用最新的 **AMBuild 2.x** 构建系统
+- 修复了旧版本中存在的服务器崩溃问题
+- 采用现代 C++17 编译器标志
 
-## 快速开始
+## 要求
 
-### 方式一：Docker 构建（推荐，最简单）
+| 依赖 | 版本 | 说明 |
+|------|------|------|
+| SourceMod | 1.12 / 1.13 | 构建时需要源代码 |
+| Metamod:Source | 1.12 / 1.13 | 构建时需要源代码 |
+| AMBuild | 2.2+ | 基于 Python 的构建系统 |
+| Python | 3.8+ | AMBuild 所需 |
+| 编译器 | GCC 9+ / Clang 10+ / MSVC 2019+ | 需支持 C++17 |
 
-```bash
-# 1. 克隆仓库
-git clone https://github.com/kittenks/dodhooks-modified.git
-cd dodhooks-modified
+## 构建依赖
 
-# 2. 设置依赖（若仓库提供该脚本）
-chmod +x setup_dependencies.sh
-./setup_dependencies.sh
-
-# 3. 使用 Docker 构建（自动拉取构建容器）
-# 32位
-docker run --rm -v $(pwd):/work -w /work \
-    ghcr.io/alliedmodders/build-containers/debian11-clang22:latest \
-    bash -c "apt-get update && pip3 install git+https://github.com/alliedmodders/ambuild.git && \
-    mkdir -p build && cd build && \
-    python3 ../configure.py --sm-path ../sourcemod --mms-path ../mmsource \
-    --target x86 --enable-optimize && ambuild"
-
-# 64位
-docker run --rm -v $(pwd):/work -w /work \
-    ghcr.io/alliedmodders/build-containers/debian11-clang22:latest \
-    bash -c "apt-get update && pip3 install git+https://github.com/alliedmodders/ambuild.git && \
-    mkdir -p build64 && cd build64 && \
-    python3 ../configure.py --sm-path ../sourcemod --mms-path ../mmsource \
-    --target x86_64 --enable-optimize && ambuild"
-```
-
-### 方式二：Linux 本地构建
+### Linux
 
 ```bash
-# 1. 安装依赖
+# Debian/Ubuntu
 sudo apt-get update
 sudo apt-get install -y build-essential clang-22 python3 python3-pip git
+
+# 安装 AMBuild
 pip3 install --upgrade git+https://github.com/alliedmodders/ambuild.git
+```
 
-# 2. 克隆仓库和依赖
-git clone https://github.com/kittenks/dodhooks-modified.git
-cd dodhooks-modified
-./setup_dependencies.sh
+### Windows
 
-# 3. 配置和构建
+```powershell
+# 从 python.org 安装 Python 3.12+
+# 安装 Visual Studio 2019+（社区版即可）
+# 从 git-scm.com 安装 Git
+
+# 安装 AMBuild
+python -m pip install --upgrade git+https://github.com/alliedmodders/ambuild.git
+```
+
+## 构建
+
+一次运行即可同时产出 32 位（x86）与 64 位（x64）二进制文件，并暂存到可直接发布的 `dist/` 目录（扩展通过 SourcePawn 头文件实现自动加载）。
+
+### 快速开始（Linux）
+
+```bash
+# 克隆仓库
+git clone https://github.com/kittenks/dodhooks.git
+cd dodhooks
+
+# 克隆依赖
+git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/metamod-source.git mmsource
+git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
+
+# 同时构建 32 位 + 64 位，然后暂存到 dist/ 并生成 .tar.gz
+./build.sh
+```
+
+产物位于 `dist/addons/sourcemod/extensions/`，其中包含 32 位的 `.so`、存放 64 位 `.so` 的 `x64/` 子目录、随附的 `dodhooks.inc` 头文件，以及 `dist/addons/sourcemod/gamedata/dodhooks.txt`。
+
+### Windows 构建
+
+```powershell
+# 打开“VS 开发人员命令提示符”（或任意终端，脚本会自动定位 vcvarsall.bat）
+
+git clone https://github.com/kittenks/dodhooks.git
+cd dodhooks
+
+git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/metamod-source.git mmsource
+git clone --depth 1 --recurse-submodules -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
+
+# 同时构建 32 位 + 64 位，然后暂存到 dist/ 并生成 .zip
+build.bat
+```
+
+### 手动 / 进阶（原生 AMBuild）
+
+如果希望手动构建单一架构：
+
+```bash
 mkdir build && cd build
 python3 ../configure.py \
     --sm-path ../sourcemod \
     --mms-path ../mmsource \
-    --target x86_64 \
+    --arch=x86 \
     --enable-optimize
 ambuild
-
-# 输出在 build/package/ 目录
+# 64 位：使用 --arch=x64
 ```
 
-### 方式三：Windows 本地构建
+> **注意：** configure 参数为 `--arch=x86` / `--arch=x64`（而非 `--target`）。SDK 选择参数为 `--sdks=dods`。
+
+### 生成 Visual Studio 工程（Windows）
 
 ```powershell
-# 1. 安装依赖
-#    - Visual Studio 2019+（含 C++ 桌面开发工作负载）
-#    - Python 3.12+（从 python.org 下载）
-#    - Git（从 git-scm.com 下载）
-
-# 2. 安装 AMBuild
-python -m pip install --upgrade git+https://github.com/alliedmodders/ambuild.git
-
-# 3. 克隆仓库
-git clone https://github.com/kittenks/dodhooks-modified.git
-cd dodhooks-modified
-
-# 4. 设置依赖
-git clone --depth 1 -b 1.12-dev https://github.com/alliedmodders/metamod-source.git mmsource
-git clone --depth 1 -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
-
-# 5. 构建（在 VS 开发者命令提示符中运行）
-# 32位：使用 "x86 Native Tools Command Prompt"
-mkdir build && cd build
-python ..\configure.py --sm-path ..\sourcemod --mms-path ..\mmsource --target x86 --enable-optimize
-ambuild
-
-# 64位：使用 "x64 Native Tools Command Prompt"
-mkdir build64 && cd build64
-python ..\configure.py --sm-path ..\sourcemod --mms-path ..\mmsource --target x86_64 --enable-optimize
-ambuild
+python ..\configure.py `
+    --sm-path ..\sourcemod `
+    --mms-path ..\mmsource `
+    --arch=x86 `
+    --enable-optimize `
+    --gen=vs
 ```
 
----
+## Docker 构建
+
+仓库提供了 `Dockerfile` 与一键封装脚本（`build_linux_docker.sh`），可用于简单、可复现的 Linux 构建（无需本机工具链）：
+
+```bash
+# 在官方 AlliedModders 容器内构建（依赖会克隆到 deps/）：
+./build_linux_docker.sh
+
+# 或手动执行：
+docker build -t dodhooks-builder .
+docker run --rm -v $(pwd):/work/dodhooks -w /work/dodhooks dodhooks-builder \
+    bash -c "pip3 install --upgrade ambuild; ./build.sh"
+```
 
 ## 安装到服务器
 
-将 `build/package/` 目录下的文件复制到游戏服务器根目录：
+构建完成后，将 `dist/` 目录的内容复制到游戏服务器的根目录：
 
 ```
-your-server/
-└── addons/
-    └── sourcemod/
-        ├── extensions/
-        │   ├── dodhooks.ext.dll         (Windows 32位)
-        │   ├── dodhooks.ext.so          (Linux 32位)
-        │   └── x64/
-        │       ├── dodhooks.ext.dll     (Windows 64位)
-        │       └── dodhooks.ext.so     (Linux 64位)
-        └── gamedata/
-            └── dodhooks.txt
+addons/
+└── sourcemod/
+    ├── extensions/
+    │   ├── dodhooks.ext.2.dods.dll        (Windows 32 位)
+    │   ├── dodhooks.ext.2.dods.so         (Linux 32 位)
+    │   └── x64/
+    │       ├── dodhooks.ext.2.dods.dll    (Windows 64 位)
+    │       └── dodhooks.ext.2.dods.so     (Linux 64 位)
+    ├── gamedata/
+    │   └── dodhooks.txt
+    └── scripting/
+        └── include/
+            └── dodhooks.inc
 ```
 
----
+### 加载扩展
 
-## 项目结构
+该扩展采用**自动加载**：任何 `#include <dodhooks>` 的插件都会让 SourceMod 在运行时自动加载 `dodhooks.ext`（解析为 `dodhooks.ext.2.dods`）。这一机制由 `dodhooks.inc` 中的 `public Extension __ext_dodhooks` 代码块实现，因此**无需** `.autoload` 标记文件或手动命令。
+
+如需手动加载（例如调试），可使用：
 
 ```
-dodhooks/
-├── .github/
-│   └── workflows/
-│       └── ci.yml              # GitHub Actions CI 配置
-├── sourcemod/
-│   ├── gamedata/
-│   │   └── dodhooks.txt       # 游戏数据签名文件
-│   ├── public/
-│   │   └── README.md          # SourceMod 公共头文件说明
-│   └── scripting/
-│       ├── include/
-│       │   └── dodhooks.inc   # SourcePawn 插件头文件
-│       └── dodhooks_example.sp # 示例插件
-├── .gitignore
-├── .gitmodules               # Git 子模块配置
-├── AMBuildScript             # AMBuild 主配置脚本
-├── AMBuilder                 # AMBuild 源文件列表
-├── Dockerfile                # Docker 构建镜像
-├── LICENSE                   # GPL v2 许可证
-├── PackageScript             # 打包脚本
-├── README.md                 # 英文文档
-├── README_zh.md              # 本文件 - 中文文档
-├── build.sh                  # Linux 一键构建脚本
-├── build.bat                 # Windows 一键构建脚本
-├── configure.py              # 配置脚本（AMBuild 入口）
-├── docker-compose.yml        # Docker Compose 配置
-├── setup_dependencies.sh     # 依赖设置脚本
-├── extension.h               # 扩展头文件
-├── extension.cpp             # 扩展主实现
-├── natives.h                 # 原生函数声明
-├── natives.cpp               # 原生函数实现
-├── vglobals.h                # Valve 全局变量接口
-├── vglobals.cpp              # Valve 全局变量实现
-└── smsdk_config.h            # 扩展配置（名称、版本等）
+sm exts load dodhooks
 ```
 
----
+> 不要使用 `meta load` —— 该命令用于 Metamod:Source 插件，对扩展的 `.dll`/`.so` 会提示 “File type not supported”。
 
-## 常见问题
+## 可用原生函数
 
-### Q: 构建时报错 "Could not find a source copy of SourceMod"
-A: 确保已运行 `setup_dependencies.sh` 或手动克隆了 SourceMod 到 `sourcemod/` 目录。
+| 原生函数 | 说明 |
+|----------|------|
+| `DOD_GetPlayerClass(client)` | 获取玩家当前兵种 |
+| `DOD_SetPlayerClass(client, class)` | 设置玩家当前兵种 |
+| `DOD_GetDesiredPlayerClass(client)` | 获取期望的玩家兵种 |
+| `DOD_SetDesiredPlayerClass(client, class)` | 设置期望的玩家兵种 |
+| `DOD_PopHelmet(client, velocity[3], origin[3])` | 强制头盔弹飞 |
+| `DOD_SetNumControlPoints(num)` | 设置控制点数量 |
+| `DOD_PrecacheCPIcon(material)` | 预缓存控制点图标材质 |
+| `DOD_SetCPIcons(index, ...)` | 设置控制点的图标 |
+| `DOD_SetCPVisible(index, visible)` | 显示/隐藏控制点 |
+| `DOD_PauseTimer(timer)` | 暂停回合计时器 |
+| `DOD_ResumeTimer(timer)` | 恢复回合计时器 |
+| `DOD_SetTimeRemaining(timer, seconds)` | 设置计时器剩余时间 |
+| `DOD_GetTimeRemaining(timer)` | 获取计时器剩余时间 |
+| `DOD_RespawnPlayer(client, useClass)` | 强制玩家重生 |
+| `DOD_AddWaveTime(team, delay)` | 为某队伍增加波次时间 |
+| `DOD_SetWinningTeam(team)` | 设置获胜队伍 |
+| `DOD_SetRoundState(state)` | 设置回合状态 |
+| `DOD_SetPlayerState(client, state)` | 设置玩家状态 |
+| `DOD_SetBombTargetState(entity, state)` | 设置炸弹目标状态 |
 
-### Q: 64 位构建后服务器崩溃
-A: 检查 gamedata 文件中的签名是否匹配你的游戏版本。64 位下的函数签名与 32 位不同，可能需要针对目标游戏版本调整签名。
+## 可用转发（钩子）
 
-### Q: 如何切换 SourceMod 版本？
-A: 修改 `setup_dependencies.sh` 中的分支参数，或在克隆时指定分支，例如：
-```bash
-git clone --depth 1 -b master https://github.com/alliedmodders/sourcemod.git sourcemod
-```
+| 转发 | 说明 |
+|------|------|
+| `OnVoiceCommand(client, &voiceCommand)` | 使用语音命令时调用 |
+| `OnJoinClass(client, &playerClass)` | 玩家加入兵种时调用 |
+| `OnPopHelmet(client, velocity[3], origin[3])` | 头盔弹飞时调用 |
+| `OnPlayerRespawn(client)` | 玩家即将重生时调用 |
+| `OnAddWaveTime(team, &delay)` | 增加波次时间时调用 |
+| `OnSetWinningTeam(team)` | 设置获胜队伍时调用 |
+| `OnEnterRoundState(&roundState)` | 回合状态改变时调用 |
+| `OnEnterPlayerState(client, &playerState)` | 玩家状态改变时调用 |
+| `OnEnterBombTargetState(entity, &bombState)` | 炸弹目标状态改变时调用 |
 
-### Q: Windows 下提示 "ambuild 不是内部命令"
-A: 确保 Python Scripts 目录在 PATH 中，或使用完整路径：
-```powershell
-python -m ambuild
-```
+## 与原版的区别
 
----
+- **SourceMod 1.12/1.13 兼容** —— 更新了 API 与构建系统
+- **64 位支持** —— 可在 64 位服务器上编译并运行
+- **现代 C++17** —— 更新了编译器标志与标准
+- **修复崩溃** —— 解决了多处服务器崩溃场景：
+  - 钩子回调中的 NULL 指针检查
+  - 64 位 ThisCall 调用约定下的正确栈对齐
+  - 更安全的 gamedata 签名解析并附带更清晰的错误信息
+  - 防止无效的实体引用
+- **改进错误处理** —— 针对缺失 gamedata 或签名给出更清晰的错误信息
+- **GitHub Actions CI** —— 自动构建 4 种平台组合（Win/Linux × x86/x64）
+- **Docker 支持** —— 通过容器化实现可复现构建
 
-## 许可证
+## 许可
 
-GPL v2 - 详见 [LICENSE](LICENSE) 文件。
+GPL v2 —— 详见 [LICENSE](LICENSE) 文件。
+
+## 致谢
+
+- **Andersso** —— 原始作者
+- **ChesterSmitty** —— 前任维护者
+- **Apfelwurm** —— CI 改进
+- **DNA-styx** —— Gamedata 文件
+- **Kittenks** —— 当前维护者（1.12/1.13 更新、构建与打包）—— https://github.com/kittenks/dodhooks
+- **AlliedModders** —— SourceMod、Metamod:Source、AMBuild

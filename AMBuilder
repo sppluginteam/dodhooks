@@ -1,83 +1,53 @@
 # vim: set sts=2 ts=8 sw=2 tw=99 et ft=python:
-"""
-DODHooks - AMBuilder
-
-Defines the source files and build targets for the extension.
-Supports both 32-bit and 64-bit builds.
-"""
-
 import os
 
 projectName = 'dodhooks'
 
-# smsdk_ext.cpp is automatically added by the build system in SM 1.12+
+sm_root = Extension.sm_root
+
+# smsdk_ext.cpp provides the extension loading glue (g_pSM, myself, etc.)
 sourceFiles = [
-    'extension.cpp',
-    'natives.cpp',
-    'vglobals.cpp',
-    '../sourcemod/public/CDetour/detours.cpp',
-    '../sourcemod/public/asm/asm.c',
-    '../sourcemod/public/libudis86/decode.c',
-    '../sourcemod/public/libudis86/itab.c',
-    '../sourcemod/public/libudis86/syn-att.c',
-    '../sourcemod/public/libudis86/syn-intel.c',
-    '../sourcemod/public/libudis86/syn.c',
-    '../sourcemod/public/libudis86/udis86.c',
+  'extension.cpp',
+  'natives.cpp',
+  'vglobals.cpp',
+  os.path.join(sm_root, 'public', 'smsdk_ext.cpp'),
+  os.path.join(sm_root, 'public', 'CDetour', 'detours.cpp'),
 ]
+
+# SafetyHook is bundled with CDetour in SourceMod 1.12+ and must be compiled
+# directly into the extension.
+safetyhook_src = os.path.join(sm_root, 'public', 'safetyhook')
+sourceFiles += [
+  os.path.join(safetyhook_src, 'src', 'allocator.cpp'),
+  os.path.join(safetyhook_src, 'src', 'easy.cpp'),
+  os.path.join(safetyhook_src, 'src', 'inline_hook.cpp'),
+  os.path.join(safetyhook_src, 'src', 'mid_hook.cpp'),
+  os.path.join(safetyhook_src, 'src', 'utility.cpp'),
+  os.path.join(safetyhook_src, 'src', 'vmt_hook.cpp'),
+]
+
+if builder.target_platform == 'windows':
+  sourceFiles.append(os.path.join(safetyhook_src, 'src', 'os.windows.cpp'))
+else:
+  sourceFiles.append(os.path.join(safetyhook_src, 'src', 'os.linux.cpp'))
+
+sourceFiles.append(os.path.join(safetyhook_src, 'zydis', 'Zydis.c'))
 
 # ---------------------------------------------------------------------------
 # Create the project
 # ---------------------------------------------------------------------------
-project = DODHooks.HL2Project(builder, projectName + '.ext')
+project = Extension.HL2Project(builder, projectName + '.ext')
 
 # Add source files
 project.sources += sourceFiles
 
 # ---------------------------------------------------------------------------
-# Create a binary for each supported SDK
+# Configure a binary for each supported SDK
 # ---------------------------------------------------------------------------
-# Be defensive: older configure paths or missing configuration may leave
-# DODHooks.sdks undefined. Build a fallback from builder.options.sdks
-# (comma-separated) or default to a single 'dod' SDK so CI doesn't crash
-# with an AttributeError.
-sdks = getattr(DODHooks, 'sdks', None)
-if not sdks:
-    sdks = {}
-    # builder.options.sdks may be provided by external scripts as a comma-separated
-    # list (e.g. --sdks=dod). If present, build minimal SDK objects with an
-    # 'ext' attribute used below.
-    sdks_opt = getattr(builder.options, 'sdks', None)
-    if sdks_opt:
-        for name in str(sdks_opt).split(','):
-            name = name.strip()
-            if not name:
-                continue
-            class _SDK:
-                pass
-            s = _SDK()
-            s.ext = name
-            sdks[name] = s
-    else:
-        class _SDK:
-            pass
-        s = _SDK()
-        s.ext = 'dod'
-        sdks['dod'] = s
+for sdk_name in Extension.sdks:
+  sdk = Extension.sdks[sdk_name]
 
-# Ensure extensions list exists on the DODHooks object
-if not hasattr(DODHooks, 'extensions'):
-    DODHooks.extensions = []
+  binary_name = '{0}.ext.{1}'.format(projectName, sdk.ext)
+  binary = Extension.HL2Config(project, binary_name, sdk)
 
-for sdk_name in sdks:
-    sdk = sdks[sdk_name]
-
-    # The binary name follows the pattern: dodhooks.ext.<sdk>.<arch>
-    binary_name = '{0}.ext.{1}'.format(projectName, sdk.ext)
-    if builder.cxx.target.arch == 'x86_64':
-        binary_name += '.x64'
-
-    binary = DODHooks.HL2Config(project, builder.cxx, binary_name)
-    DODHooks.extensions.append(binary)
-
-# Export for PackageScript
-Extension = DODHooks
+Extension.extensions = builder.Add(project)

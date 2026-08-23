@@ -1,36 +1,20 @@
 # DODHooks - Linux Build Container
 #
-# Based on the official AlliedModders build container.
-# Supports both x86 (32-bit) and x86_64 (64-bit) builds.
+# Based on the official AlliedModders build container, which already
+# provides the full 32-bit / 64-bit toolchains, git and Python.
 #
 # Usage:
 #   docker build -t dodhooks-builder .
 #
-#   # 32-bit build
-#   docker run --rm -v $(pwd):/work -w /work dodhooks-builder \
-#     bash -c "mkdir -p build && cd build && \
-#     python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource --target x86 --enable-optimize && \
-#     ambuild"
-#
-#   # 64-bit build
-#   docker run --rm -v $(pwd):/work -w /work dodhooks-builder \
-#     bash -c "mkdir -p build && cd build && \
-#     python3 ../configure.py --sm-path /sourcemod --mms-path /mmsource --target x86_64 --enable-optimize && \
-#     ambuild"
+#   docker run --rm -v $(pwd):/work/dodhooks -w /work/dodhooks \
+#     dodhooks-builder bash -c "pip3 install --upgrade ambuild; ./build.sh"
 
 FROM ghcr.io/alliedmodders/build-containers/debian11-clang22:latest
 
-# Install additional dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3-pip \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# Install AMBuild (the build driver used by SourceMod extensions).
+RUN pip3 install --upgrade ambuild || pip3 install --user --upgrade ambuild || true
 
-# Install AMBuild
-RUN pip3 install --upgrade git+https://github.com/alliedmodders/ambuild.git
+WORKDIR /work/dodhooks
 
-# Set working directory
-WORKDIR /work
-
-# Default command: show help
-CMD ["bash", "-c", "echo 'DODHooks Docker Builder' && echo '' && echo 'Usage:' && echo '  docker run --rm -v \$(pwd):/work -w /work <image> <build-command>'"]
+# Default command: run the Linux build.
+CMD ["bash", "-c", "pip3 install --upgrade ambuild 2>/dev/null; ./build.sh"]

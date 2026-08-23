@@ -1,0 +1,169 @@
+name: Build DODHooks
+
+on:
+  push:
+    tags: ['v*']
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ------------------------------------------------------------------
+  # Windows: builds BOTH 32-bit (x86) and 64-bit (x64) in one job,
+  # staging them into a single release-ready "dist" folder.
+  # ------------------------------------------------------------------
+  windows:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout extension
+        uses: actions/checkout@v4
+
+      - name: Checkout SourceMod
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/sourcemod
+          ref: 1.12-dev
+          path: deps/sourcemod
+
+      - name: Checkout Metamod:Source
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/metamod-source
+          ref: 1.12-dev
+          path: deps/mmsource
+          submodules: recursive
+
+      - name: Checkout hl2sdk-dods
+        uses: actions/checkout@v4
+        with:
+          repository: ValveSoftware/hl2sdk
+          ref: dods
+          path: deps/hl2sdk-dods
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install AMBuild
+        run: python -m pip install --upgrade ambuild
+
+      - name: Build (x86 + x64)
+        shell: cmd
+        run: build.bat
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-dist
+          path: dist/
+
+  # ------------------------------------------------------------------
+  # Linux: builds BOTH 32-bit (x86) and 64-bit (x64) in one job.
+  # ------------------------------------------------------------------
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout extension
+        uses: actions/checkout@v4
+
+      - name: Checkout SourceMod
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/sourcemod
+          ref: 1.12-dev
+          path: deps/sourcemod
+
+      - name: Checkout Metamod:Source
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/metamod-source
+          ref: 1.12-dev
+          path: deps/mmsource
+          submodules: recursive
+
+      - name: Checkout hl2sdk-dods
+        uses: actions/checkout@v4
+        with:
+          repository: ValveSoftware/hl2sdk
+          ref: dods
+          path: deps/hl2sdk-dods
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install 32-bit toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-multilib g++-multilib libstdc++6:i386
+
+      - name: Install AMBuild
+        run: python3 -m pip install --upgrade ambuild
+
+      - name: Build (x86 + x64)
+        run: ./build.sh
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-dist
+          path: dist/
+
+  # ------------------------------------------------------------------
+  # Release: package the two "dist" folders into platform zips plus a
+  # source zip, and publish them on tag pushes.
+  # ------------------------------------------------------------------
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows dist
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-dist
+          path: windows-dist
+
+      - name: Download Linux dist
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-dist
+          path: linux-dist
+
+      - name: Assemble release archives
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          echo "Version: ${VERSION}"
+
+          # Windows zip (86 + 64)
+          (cd windows-dist && zip -r "../DODHooks-${VERSION}-sm1.12-windows.zip" addons)
+          # Linux zip (86 + 64)
+          (cd linux-dist && zip -r "../DODHooks-${VERSION}-sm1.12-linux.zip" addons)
+
+          echo "Created:"
+          ls -la *.zip
+
+      - name: Build source package
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create source zip
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          git archive --format=zip --output="DODHooks-${VERSION}-source.zip" HEAD
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            DODHooks-*-sm1.12-windows.zip
+            DODHooks-*-sm1.12-linux.zip
+            DODHooks-*-source.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

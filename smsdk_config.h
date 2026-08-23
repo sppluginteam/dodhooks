@@ -39,9 +39,9 @@
 
 #define SMEXT_CONF_NAME            "DODHooks"
 #define SMEXT_CONF_DESCRIPTION     "SourceMod extension with Detours & Natives for Day of Defeat: Source"
-#define SMEXT_CONF_VERSION         "1.5.0"
-#define SMEXT_CONF_AUTHOR          "Andersso, ChesterSmitty, Apfelwurm, DNA-styx"
-#define SMEXT_CONF_URL             "https://github.com/DNA-styx/dodhooks"
+#define SMEXT_CONF_VERSION         "1.6.0"
+#define SMEXT_CONF_AUTHOR          "Andersso, ChesterSmitty, Apfelwurm, DNA-styx, Kittenks"
+#define SMEXT_CONF_URL             "https://github.com/kittenks/dodhooks"
 #define SMEXT_CONF_LOGTAG          "DODHOOKS"
 #define SMEXT_CONF_LICENSE         "GPLv2"
 #define SMEXT_CONF_DATESTRING      __DATE__
@@ -50,6 +50,28 @@
  * @brief The interface version we expect from SourceMod.
  * SM 1.12+ uses this to ensure compatibility.
  */
-#define SMEXT_ENABLE_FORWARDSYSTEM
+#define SMEXT_ENABLE_FORWARDSYS
+
+/**
+ * @brief Enables the game config manager (g_pGameConfs / IGameConfig).
+ */
+#define SMEXT_ENABLE_GAMECONF
+
+/**
+ * @brief Enables the game helpers interface (g_pGameHelpers / IGameHelpers).
+ */
+#define SMEXT_ENABLE_GAMEHELPERS
+
+/**
+ * @brief Declares this extension as a Metamod:Source plugin so that the
+ * engine (g_pEngine / IVEngineServer) and Metamod interfaces are available.
+ * Targets Metamod:Source 1.12 (built against the 1.12-dev branch).
+ */
+#define SMEXT_CONF_METAMOD
+
+/**
+ * @brief Exposes the extension's main interface variable.
+ */
+#define SMEXT_LINK(name) SDKExtension *g_pExtensionIface = name;
 
 #endif // _INCLUDE_SOURCEMOD_EXTENSION_CONFIG_H_

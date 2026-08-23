@@ -23,6 +23,16 @@
 #include <sourcemod.h>
 #include <smsdk_ext.h>
 
+/* HL2SDK public headers providing types used by this extension. */
+#include <networkstringtabledefs.h>
+#include <edict.h>
+
+/**
+ * @brief Helper to read/write an entity member at a byte offset.
+ * Produces an lvalue so it can be used on both the left and right hand side.
+ */
+#define OFFSET(type, base, offset) (*(type *)((unsigned char *)(base) + (offset)))
+
 /**
  * Convenience macros - new style uses the global interfaces directly
  * where available, with fallbacks for older SM versions.

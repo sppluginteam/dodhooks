@@ -1,150 +1,279 @@
 @echo off
-REM ============================================
+REM ============================================================
 REM DODHooks - Windows Build Script
 REM
-REM Builds the extension for Windows x86 and x86_64
-REM Requires: Visual Studio 2019+ with C++ tools, Python 3.12+, Git
+REM Builds the extension for Windows x86 (32-bit) AND x86_64 (64-bit)
+REM in a single run, then stages everything into a release-ready
+REM "dist" folder and a .zip archive.
+REM
+REM Requirements:
+REM   - Visual Studio 2019/2022 with "Desktop development with C++"
+REM   - Python 3.8+ with AMBuild installed (pip install ambuild)
+REM   - Git
 REM
 REM Usage:
-REM   build.bat [arch] [sm_branch]
-REM   arch: x86, x64, or all (default: all)
-REM   sm_branch: 1.12-dev or master (default: 1.12-dev)
-REM
-REM Example:
-REM   build.bat all 1.12-dev
-REM   build.bat x64 master
-REM ============================================
+REM   build.bat
+REM   build.bat --no-zip
+REM ============================================================
 
 setlocal EnableDelayedExpansion
-
-set ARCH=%1
-if "%ARCH%"=="" set ARCH=all
-
-set SM_BRANCH=%2
-if "%SM_BRANCH%"=="" set SM_BRANCH=1.12-dev
+echo [START] DODHooks Windows Build
+echo.
 
 set SCRIPT_DIR=%~dp0
-set BUILD_ROOT=%SCRIPT_DIR%builds\
+if "%SCRIPT_DIR:~-1%"=="\" set SCRIPT_DIR=%SCRIPT_DIR:~0,-1%
+
+set DO_ZIP=1
+if /I "%~1"=="--no-zip" set DO_ZIP=0
 
 echo ============================================
-echo  DODHooks Windows Build Script
+echo   DODHooks Windows Build
 echo ============================================
-echo  SourceMod branch: %SM_BRANCH%
-echo  Target arch:      %ARCH%
-echo ============================================
+
+REM ---------- Dependency detection ----------
+REM Candidates (in order): deps\<name>, <name> (inside repo),
+REM   ..\<name> (sibling of the repo, e.g. D:\dhooks\sourcemod).
+set "SM_PATH="
+if exist "%SCRIPT_DIR%\deps\sourcemod\core\logic\ExtensionSys.cpp" set "SM_PATH=%SCRIPT_DIR%\deps\sourcemod"
+if not defined SM_PATH if exist "%SCRIPT_DIR%\sourcemod\core\logic\ExtensionSys.cpp" set "SM_PATH=%SCRIPT_DIR%\sourcemod"
+if not defined SM_PATH if exist "%SCRIPT_DIR%\..\sourcemod\core\logic\ExtensionSys.cpp" set "SM_PATH=%SCRIPT_DIR%\..\sourcemod"
+
+set "MMS_PATH="
+if exist "%SCRIPT_DIR%\deps\mmsource\core\metamod_plugins.cpp" set "MMS_PATH=%SCRIPT_DIR%\deps\mmsource"
+if not defined MMS_PATH if exist "%SCRIPT_DIR%\mmsource\core\metamod_plugins.cpp" set "MMS_PATH=%SCRIPT_DIR%\mmsource"
+if not defined MMS_PATH if exist "%SCRIPT_DIR%\..\mmsource\core\metamod_plugins.cpp" set "MMS_PATH=%SCRIPT_DIR%\..\mmsource"
+
+set "HL2_ROOT="
+if exist "%SCRIPT_DIR%\deps\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%\deps"
+if not defined HL2_ROOT if exist "%SCRIPT_DIR%\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%"
+if not defined HL2_ROOT if exist "%SCRIPT_DIR%\..\hl2sdk-dods\public" set "HL2_ROOT=%SCRIPT_DIR%\.."
+
+echo   SourceMod : %SM_PATH%
+echo   Metamod   : %MMS_PATH%
+echo   HL2SDK    : %HL2_ROOT% (sdk: dods)
 echo.
 
-REM --- Install AMBuild if needed ---
-echo [1/4] Checking AMBuild...
-python -c "import ambuild" 2>nul
+REM ---------- Verify dependency presence ----------
+if not defined SM_PATH (
+  echo [ERROR] SourceMod not found.
+  echo         Tried: deps\sourcemod, sourcemod, ..\sourcemod
+  echo         Clone it:
+  echo           git clone --depth 1 -b 1.12-dev https://github.com/alliedmodders/sourcemod.git sourcemod
+  goto :error
+)
+if not exist "%SM_PATH%\core\logic\ExtensionSys.cpp" (
+  echo [ERROR] SourceMod not found at %SM_PATH%\core\logic\ExtensionSys.cpp
+  goto :error
+)
+if not defined MMS_PATH (
+  echo [ERROR] Metamod:Source not found.
+  echo         Tried: deps\mmsource, mmsource, ..\mmsource
+  goto :error
+)
+if not exist "%MMS_PATH%\core\metamod_plugins.cpp" (
+  echo [ERROR] Metamod:Source not found at %MMS_PATH%\core\metamod_plugins.cpp
+  goto :error
+)
+if not defined HL2_ROOT (
+  echo [ERROR] hl2sdk-dods not found.
+  echo         Tried: deps\hl2sdk-dods, hl2sdk-dods, ..\hl2sdk-dods
+  goto :error
+)
+if not exist "%HL2_ROOT%\hl2sdk-dods\public" (
+  echo [ERROR] hl2sdk-dods public/ not found at %HL2_ROOT%\hl2sdk-dods\public
+  goto :error
+)
+
+REM ---------- Locate vcvarsall.bat ----------
+set "VCBAT="
+for %%P in (
+  "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+  "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvarsall.bat"
+) do (
+  if exist %%P if not defined VCBAT set "VCBAT=%%~P"
+)
+if not defined VCBAT (
+  echo [ERROR] vcvarsall.bat not found.
+  echo         Install Visual Studio 2019/2022 with "Desktop development with C++".
+  goto :error
+)
+echo   Using: %VCBAT%
+echo.
+
+REM ---------- Check Python ----------
+python --version 2>&1
 if errorlevel 1 (
-    echo   Installing AMBuild...
-    python -m pip install --upgrade git+https://github.com/alliedmodders/ambuild.git
-) else (
-    echo   AMBuild already installed.
+  echo [ERROR] python not found on PATH.
+  echo         Install Python 3.8+ from https://www.python.org/downloads/
+  echo         Make sure to check "Add Python to PATH" during installation.
+  goto :error
 )
 
-REM --- Clone dependencies ---
-echo.
-echo [2/4] Cloning dependencies...
-
-if not exist "%SCRIPT_DIR%mmsource\" (
-    echo   Cloning Metamod:Source...
-    git clone --depth 1 --recurse-submodules -j8 --shallow-submodules -b %SM_BRANCH% https://github.com/alliedmodders/metamod-source.git "%SCRIPT_DIR%mmsource"
-) else (
-    echo   Metamod:Source exists, updating...
-    cd /d "%SCRIPT_DIR%mmsource"
-    git pull --ff-only 2>nul || true
-    cd /d "%SCRIPT_DIR%"
+REM ---------- Ensure AMBuild is installed ----------
+python -c "import ambuild" >nul 2>&1
+if errorlevel 1 (
+  echo [INFO] AMBuild not found, installing...
+  python -m pip install --upgrade ambuild
+  if errorlevel 1 (
+    echo [ERROR] Failed to install AMBuild. Try manually:
+    echo           python -m pip install ambuild
+    goto :error
+  )
 )
 
-if not exist "%SCRIPT_DIR%sourcemod\" (
-    echo   Cloning SourceMod...
-    git clone --depth 1 --recurse-submodules -j8 --shallow-submodules -b %SM_BRANCH% https://github.com/alliedmodders/sourcemod.git "%SCRIPT_DIR%sourcemod"
-) else (
-    echo   SourceMod exists, updating...
-    cd /d "%SCRIPT_DIR%sourcemod"
-    git pull --ff-only 2>nul || true
-    cd /d "%SCRIPT_DIR%"
+REM ---------- Locate ambuild command ----------
+set "AMBUILD_CMD=ambuild"
+echo   ambuild: ambuild (PATH)
+echo.
+
+REM ---------- Build both architectures ----------
+echo.
+echo ============================================
+echo   Building x86 (32-bit) and x64 (64-bit)
+echo ============================================
+call :build_one x86 x86
+if errorlevel 1 (
+  echo.
+  echo [ERROR] x86 build failed.
+  goto :error
+)
+call :build_one x64 x64
+if errorlevel 1 (
+  echo.
+  echo [ERROR] x64 build failed.
+  goto :error
 )
 
-REM --- Build function ---
+REM ---------- Stage distribution ----------
 echo.
-echo [3/4] Building extension...
+echo [STAGE] Assembling release folder...
+set "DIST=%SCRIPT_DIR%\dist"
+if exist "%DIST%" rmdir /s /q "%DIST%"
+mkdir "%DIST%\addons\sourcemod\extensions\x64" 2>nul
+mkdir "%DIST%\addons\sourcemod\gamedata" 2>nul
+mkdir "%DIST%\addons\sourcemod\scripting\include" 2>nul
 
-if "%ARCH%"=="all" goto :build_all
-if "%ARCH%"=="x86" goto :build_x86
-if "%ARCH%"=="x64" goto :build_x64
-goto :build_all
+REM 32-bit binary (default)
+if exist "%SCRIPT_DIR%\build_x86\package\addons\sourcemod\extensions\dodhooks.ext.2.dods.dll" (
+  copy /Y "%SCRIPT_DIR%\build_x86\package\addons\sourcemod\extensions\dodhooks.ext.2.dods.dll" "%DIST%\addons\sourcemod\extensions\" >nul
+  echo   [OK] 32-bit DLL
+) else (
+  echo [ERROR] 32-bit build output missing.
+  goto :error
+)
 
-:build_all
-call :build_x86
-call :build_x64
-goto :package
+REM 64-bit binary (x64 subfolder)
+if exist "%SCRIPT_DIR%\build_x64\package\addons\sourcemod\extensions\x64\dodhooks.ext.2.dods.dll" (
+  copy /Y "%SCRIPT_DIR%\build_x64\package\addons\sourcemod\extensions\x64\dodhooks.ext.2.dods.dll" "%DIST%\addons\sourcemod\extensions\x64\" >nul
+  echo   [OK] 64-bit DLL
+) else (
+  echo [ERROR] 64-bit build output missing.
+  goto :error
+)
 
-:build_x86
+REM GameData
+if exist "%SCRIPT_DIR%\gamedata\dodhooks.txt" (
+  copy /Y "%SCRIPT_DIR%\gamedata\dodhooks.txt" "%DIST%\addons\sourcemod\gamedata\" >nul
+  echo   [OK] GameData
+) else (
+  echo [ERROR] gamedata\dodhooks.txt not found.
+  goto :error
+)
+
+REM SourcePawn include (auto-loads the extension via "public Extension")
+if exist "%SCRIPT_DIR%\sourcemod\scripting\include\dodhooks.inc" (
+  copy /Y "%SCRIPT_DIR%\sourcemod\scripting\include\dodhooks.inc" "%DIST%\addons\sourcemod\scripting\include\" >nul
+  echo   [OK] dodhooks.inc
+) else (
+  echo   [WARN] sourcemod\scripting\include\dodhooks.inc not found, skipping.
+)
+
+REM ---------- Version ----------
+set "VERSION=1.0"
+for /f "tokens=3 delims= " %%V in ('findstr /R /C:"SMEXT_CONF_VERSION" "%SCRIPT_DIR%\smsdk_config.h"') do (
+  set "RAW=%%V"
+)
+if defined RAW (
+  set "RAW=!RAW:"=!"
+  set "VERSION=!RAW!"
+)
+echo   Version: %VERSION%
+
+REM ---------- Zip ----------
+if "%DO_ZIP%"=="1" (
+  echo.
+  echo [ZIP] Creating archive...
+  set "ARCHIVE=DODHooks-%VERSION%-sm1.12-windows.zip"
+  if exist "%SCRIPT_DIR%\!ARCHIVE!" del /q "%SCRIPT_DIR%\!ARCHIVE!"
+  powershell -NoProfile -Command "Compress-Archive -Path '%DIST%\*' -DestinationPath '%SCRIPT_DIR%\DODHooks-%VERSION%-sm1.12-windows.zip' -Force"
+  if errorlevel 1 (
+    echo [WARN] Zip creation failed.
+  ) else (
+    echo   Created: DODHooks-%VERSION%-sm1.12-windows.zip
+  )
+)
+
+echo.
+echo ============================================
+echo   Build complete!
+echo ============================================
+echo.
+echo   dist\           -> %DIST%
+echo   Upload to server -> addons\sourcemod\extensions\
+echo.
+echo   Contents:
+dir /B /S "%DIST%"
+echo.
+goto :done
+
+REM ============================================================
+:build_one
+set "ARCH=%1"
+set "VCVARS=%2"
 echo.
 echo ----------------------------------------
-echo  Building for x86 (32-bit)
+echo   Building for %ARCH% (%VCVARS%)
 echo ----------------------------------------
-if not exist "%SCRIPT_DIR%build_x86\" mkdir "%SCRIPT_DIR%build_x86"
-cd /d "%SCRIPT_DIR%build_x86"
-python "%SCRIPT_DIR%configure.py" --sm-path "%SCRIPT_DIR%sourcemod" --mms-path "%SCRIPT_DIR%mmsource" --target x86 --enable-optimize
-if errorlevel 1 goto :error
-ambuild
-if errorlevel 1 goto :error
-goto :eof
-
-:build_x64
-echo.
-echo ----------------------------------------
-echo  Building for x64 (64-bit)
-echo ----------------------------------------
-if not exist "%SCRIPT_DIR%build_x64\" mkdir "%SCRIPT_DIR%build_x64"
-cd /d "%SCRIPT_DIR%build_x64"
-python "%SCRIPT_DIR%configure.py" --sm-path "%SCRIPT_DIR%sourcemod" --mms-path "%SCRIPT_DIR%mmsource" --target x86_64 --enable-optimize
-if errorlevel 1 goto :error
-ambuild
-if errorlevel 1 goto :error
-goto :eof
-
-:package
-REM --- Package ---
-echo.
-echo [4/4] Creating release packages...
+if exist "%SCRIPT_DIR%\build_%ARCH%" rmdir /s /q "%SCRIPT_DIR%\build_%ARCH%"
+mkdir "%SCRIPT_DIR%\build_%ARCH%"
+call "%VCBAT%" %VCVARS%
+if errorlevel 1 (
+  echo [ERROR] vcvarsall.bat failed for %VCVARS%.
+  exit /b 1
+)
+cd /d "%SCRIPT_DIR%\build_%ARCH%"
+echo   configure.py --arch=%ARCH% ...
+python "%SCRIPT_DIR%\configure.py" --sm-path "%SM_PATH%" --mms-path "%MMS_PATH%" --hl2sdk-root "%HL2_ROOT%" --sdks=dods --enable-optimize --arch=%ARCH%
+if errorlevel 1 (
+  echo [ERROR] configure.py failed for %ARCH%.
+  exit /b 1
+)
+echo   ambuild ...
+%AMBUILD_CMD%
+if errorlevel 1 (
+  echo [ERROR] ambuild failed for %ARCH%.
+  exit /b 1
+)
 cd /d "%SCRIPT_DIR%"
-
-REM Copy 32-bit binaries
-if exist "%SCRIPT_DIR%build_x86\package\" (
-    if not exist "%BUILD_ROOT%1.12\x86\" mkdir "%BUILD_ROOT%1.12\x86\"
-    xcopy /E /Y "%SCRIPT_DIR%build_x86\package\addons\sourcemod\extensions\*" "%BUILD_ROOT%1.12\x86\" >nul
-)
-
-REM Copy 64-bit binaries
-if exist "%SCRIPT_DIR%build_x64\package\" (
-    if not exist "%BUILD_ROOT%1.12\x64\" mkdir "%BUILD_ROOT%1.12\x64\"
-    xcopy /E /Y "%SCRIPT_DIR%build_x64\package\addons\sourcemod\extensions\*" "%BUILD_ROOT%1.12\x64\" >nul
-)
-
-REM Copy gamedata
-if exist "%SCRIPT_DIR%sourcemod\gamedata\" (
-    if not exist "%BUILD_ROOT%gamedata\" mkdir "%BUILD_ROOT%gamedata\"
-    xcopy /E /Y "%SCRIPT_DIR%sourcemod\gamedata\*" "%BUILD_ROOT%gamedata\" >nul
-)
-
-echo.
-echo ============================================
-echo  Build complete!
-echo ============================================
-echo  Output: %BUILD_ROOT%
-echo.
-dir /B /S "%BUILD_ROOT%*.dll" 2>nul
-dir /B /S "%BUILD_ROOT%*.so" 2>nul
-goto :eof
+echo   [OK] %ARCH% build complete.
+exit /b 0
 
 :error
 echo.
 echo ============================================
-echo  BUILD FAILED!
+echo   BUILD FAILED!
 echo ============================================
+echo.
+:done
+echo Press any key to exit...
+pause >nul
+endlocal
 exit /b 1

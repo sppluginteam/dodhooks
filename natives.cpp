@@ -131,7 +131,7 @@ cell_t Native_PopHelmet(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve PopHelmet signature");
         }
 
-        PassInfo Pass[2];
+        SourceMod::PassInfo Pass[2];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(Vector);
         Pass[0].type = PassType_Basic;
@@ -269,7 +269,7 @@ cell_t Native_SetCPIcons(IPluginContext *pContext, const cell_t *Params)
 
     edict_t *pEdict = g_pGameEnts->BaseEntityToEdict(pObjectiveResource);
 
-    uint8 arrayElement = Params[1] * sizeof(int);
+    int arrayElement = static_cast<int>(Params[1]) * static_cast<int>(sizeof(int));
 
     if (Params[2])
     {
@@ -323,7 +323,7 @@ cell_t Native_SetCPVisible(IPluginContext *pContext, const cell_t *Params)
         return pContext->ThrowNativeError("Control point index %d is not valid", Params[1]);
     }
 
-    uint8 arrayElement = Params[1] * sizeof(int);
+    int arrayElement = static_cast<int>(Params[1]) * static_cast<int>(sizeof(int));
 
     OFFSET(int, pObjectiveResource, g_iOffset_CPIsVisible + arrayElement) = Params[2];
 
@@ -511,7 +511,7 @@ cell_t Native_AddWaveTime(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve AddWaveTime signature");
         }
 
-        PassInfo Pass[2];
+        SourceMod::PassInfo Pass[2];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(int);
         Pass[0].type = PassType_Basic;
@@ -574,7 +574,7 @@ cell_t Native_SetWinningTeam(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve SetWinningTeam signature");
         }
 
-        PassInfo Pass[1];
+        SourceMod::PassInfo Pass[1];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(int);
         Pass[0].type = PassType_Basic;
@@ -624,7 +624,7 @@ cell_t Native_SetRoundState(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve RoundState signature");
         }
 
-        PassInfo Pass[1];
+        SourceMod::PassInfo Pass[1];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(int);
         Pass[0].type = PassType_Basic;
@@ -686,7 +686,7 @@ cell_t Native_SetPlayerState(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve PlayerState signature");
         }
 
-        PassInfo Pass[1];
+        SourceMod::PassInfo Pass[1];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(int);
         Pass[0].type = PassType_Basic;
@@ -742,7 +742,7 @@ cell_t Native_SetBombTargetState(IPluginContext *pContext, const cell_t *Params)
             return pContext->ThrowNativeError("Failed to resolve BombTargetState signature");
         }
 
-        PassInfo Pass[1];
+        SourceMod::PassInfo Pass[1];
         Pass[0].flags = PASSFLAG_BYVAL;
         Pass[0].size = sizeof(int);
         Pass[0].type = PassType_Basic;

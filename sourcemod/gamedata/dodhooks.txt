@@ -1,10 +1,16 @@
 /**
  * DoDHooks Gamedata
- * 
+ *
  * Updated for Day of Defeat: Source (latest Steam version)
  * Compatible with SourceMod 1.12 / 1.13
- * 
+ *
  * Maintainers: DNA-styx, Andersso, ChesterSmitty
+ *
+ * Note:
+ *   The "#default" section below is applied to every game. Since this
+ *   extension only loads on Day of Defeat: Source (game folder "dod"), the
+ *   offsets and signatures here are specifically validated against the
+ *   dod server binary.
  */
 
 "Games"

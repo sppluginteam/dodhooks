@@ -11,6 +11,20 @@
 #define _dodhooks_included
 
 /**
+ * Auto-loads the DODHooks extension whenever a plugin includes this file.
+ * SourceMod will load "dodhooks.ext" (resolved to dodhooks.ext.2.dods) when
+ * the plugin starts, so no manual "sm exts load" or ".autoload" file is
+ * required. Set autoload = 0 if you prefer to control loading yourself.
+ */
+public Extension __ext_dodhooks =
+{
+    name = "DODHooks",
+    file = "dodhooks.ext",
+    autoload = 1,
+    required = 0,
+};
+
+/**
  * Player class constants
  */
 enum DODPlayerClass
