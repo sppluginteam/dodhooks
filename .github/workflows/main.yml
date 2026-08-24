@@ -2,7 +2,7 @@ name: Build DODHooks
 
 on:
   push:
-    branches: [main, master]
+    branches: [beta-test]
   pull_request:
   workflow_dispatch:
 
